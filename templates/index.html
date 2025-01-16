@@ -14,6 +14,10 @@
         h1 {
             text-align: center;
         }
+        .controls {
+            text-align: right;
+            margin-bottom: 20px;
+        }
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -40,6 +44,15 @@
             flex-grow: 1;
             height: 150px;
             overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f4f4f4;
+        }
+        .post-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .post-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
         }
         .post-content p {
             font-size: 14px;
@@ -53,56 +66,77 @@
             display: flex;
             justify-content: space-between;
         }
+        #loading {
+            text-align: center;
+            display: none;
+            font-size: 18px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <h1>Instagram Posts with Hashtag</h1>
 
-    <form method="POST">
+    <form method="POST" onsubmit="showLoading()">
         <label for="hashtag">Enter Hashtag (e.g. #nature): </label>
         <input type="text" id="hashtag" name="hashtag" required>
         <button type="submit">Search</button>
     </form>
 
-    {% if hashtag %}
-    <h2>Posts for "{{ hashtag }}"</h2>
-    <div class="container">
-        <div class="section">
-            <h3>Top Media</h3>
-            {% for post in top_media %}
-            <div class="post">
-                <a href="https://www.instagram.com/p/{{ post.id }}" target="_blank">
-                    <img src="{{ post.media_url }}" alt="Post Image">
-                </a>
-                <div class="post-info">
-                    <span>좋아요 {{ post.like_count }}</span>
-                    <span>댓글 {{ post.comments_count }}</span>
-                </div>
-                <div class="post-content">
-                    <p id="caption-{{ post.id }}">{{ post.caption }}</p>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="section">
-            <h3>Recent Media</h3>
-            {% for post in recent_media %}
-            <div class="post">
-                <a href="https://www.instagram.com/p/{{ post.id }}" target="_blank">
-                    <img src="{{ post.media_url }}" alt="Post Image">
-                </a>
-                <div class="post-info">
-                    <span>좋아요 {{ post.like_count }}</span>
-                    <span>댓글 {{ post.comments_count }}</span>
-                </div>
-                <div class="post-content">
-                    <p id="caption-{{ post.id }}">{{ post.caption }}</p>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+    {% if error %}
+    <div style="color: red; text-align: center; margin-bottom: 20px;">
+        {{ error }}
     </div>
     {% endif %}
+
+    {% if hashtag %}
+    <h2>Posts for "{{ hashtag }}"</h2>
+    <div class="controls">
+        <label for="sort">정렬: </label>
+        <select id="sort" onchange="sortPosts()">
+            <option value="" disabled selected>정렬 기준 선택</option>
+            <option value="likes">좋아요순</option>
+            <option value="comments">댓글순</option>
+        </select>
+    </div>
+    <div class="container" id="posts-container">
+        {% for post in top_media %}
+        <div class="post" data-likes="{{ post.like_count }}" data-comments="{{ post.comments_count }}">
+            <a href="{{post.permalink}}" target="_blank">
+                <img src="{{ post.media_url }}" alt="Post Image">
+            </a>
+            <div class="post-info">
+                <span>좋아요 {{ post.like_count }}</span>
+                <span>댓글 {{ post.comments_count }}</span>
+            </div>
+            <div class="post-content">
+                <p>{{ post.caption }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div id="loading">Loading...</div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function sortPosts() {
+            const container = document.getElementById('posts-container');
+            const posts = Array.from(container.getElementsByClassName('post'));
+            const sortBy = document.getElementById('sort').value;
+
+            posts.sort((a, b) => {
+                const aValue = parseInt(a.dataset[sortBy], 10) || 0;
+                const bValue = parseInt(b.dataset[sortBy], 10) || 0;
+                return bValue - aValue;
+            });
+
+            posts.forEach(post => container.appendChild(post));
+        }
+    </script>
 </body>
 </html>

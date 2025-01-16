@@ -8,53 +8,67 @@ app = Flask(__name__)
 ACCESS_TOKEN = config.ACCESS_TOKEN
 USER_ID = config.USER_ID
 
-# Instagram Graph API의 URL
+# Instagram Graph API URL
 GRAPH_API_URL = 'https://graph.facebook.com/v21.0'
 
-# 인기 게시물과 최신 게시물을 가져오는 함수
-# 게시글id, 설명, 미디어 타입, 미디어 url, 댓글 수,좋아요 수
+# JSON 데이터를 저장하는 함수 (디버깅 용도)
+def save_json_to_file(filename, data):
+    with open(filename, 'w', encoding='utf-8') as f:
+        import json
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# Instagram 게시물 가져오기 함수
 def get_instagram_posts(hashtag_id):
-    # 인기 게시물 (top_media)
-    top_media_url = f'{GRAPH_API_URL}/{hashtag_id}/top_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count&access_token={ACCESS_TOKEN}'
-    top_media_response = requests.get(top_media_url)
-    top_media_data = top_media_response.json().get('data', [])
+    try:
+        # 인기 게시물
+        top_media_url = f'{GRAPH_API_URL}/{hashtag_id}/top_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count,permalink&access_token={ACCESS_TOKEN}'
+        top_media_response = requests.get(top_media_url)
+        top_media_response.raise_for_status()
+        top_media_data = top_media_response.json().get('data', [])
 
-    # 최근 게시물 (recent_media)
-    recent_media_url = f'{GRAPH_API_URL}/{hashtag_id}/recent_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count&access_token={ACCESS_TOKEN}'
-    recent_media_response = requests.get(recent_media_url)
-    recent_media_data = recent_media_response.json().get('data', [])
+        # 최근 게시물
+        recent_media_url = f'{GRAPH_API_URL}/{hashtag_id}/recent_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count,permalink&access_token={ACCESS_TOKEN}'
+        recent_media_response = requests.get(recent_media_url)
+        recent_media_response.raise_for_status()
+        recent_media_data = recent_media_response.json().get('data', [])
 
-    # # 로그에 출력
-    # print("Top Media Data:", top_media_data)
-    # print("Recent Media Data:", recent_media_data)
+        # JSON 데이터를 파일로 저장 (디버깅 용)
+        save_json_to_file("top_media.json", top_media_data)
+        save_json_to_file("recent_media.json", recent_media_data)
 
-    return top_media_data, recent_media_data
+        return top_media_data, recent_media_data
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Instagram posts: {e}")
+        return [], []
+
+# 해시태그 ID 가져오기 함수
+def get_hashtag_id_from_name(hashtag):
+    try:
+        hashtag_url = f'https://graph.facebook.com/ig_hashtag_search?user_id={USER_ID}&q={hashtag}&access_token={ACCESS_TOKEN}'
+        response = requests.get(hashtag_url)
+        response.raise_for_status()
+        hashtag_data = response.json()
+        if 'data' in hashtag_data and len(hashtag_data['data']) > 0:
+            return hashtag_data['data'][0]['id']
+        else:
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching hashtag ID: {e}")
+        return None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # 사용자가 입력한 해시태그 가져오기
         hashtag = request.form['hashtag']
-        
-        # 해시태그에 해당하는 ID를 요청하거나, 미리 설정된 해시태그 ID를 사용할 수 있습니다.
-        # 예시에서는 해시태그 ID를 미리 알아두어야 합니다. 
         hashtag_id = get_hashtag_id_from_name(hashtag)
 
-        # Instagram에서 인기 게시물과 최신 게시물 가져오기
-        top_media_data, recent_media_data = get_instagram_posts(hashtag_id)
+        if not hashtag_id:
+            return render_template('index.html', error="Invalid hashtag. Please try another hashtag.")
 
+        top_media_data, recent_media_data = get_instagram_posts(hashtag_id)
         return render_template('index.html', top_media=top_media_data, recent_media=recent_media_data, hashtag=hashtag)
     
     return render_template('index.html')
-
-# 해시태그 검색
-def get_hashtag_id_from_name(hashtag):
-    hashtag_url = f'https://graph.facebook.com/ig_hashtag_search?user_id={USER_ID}&q={hashtag}&access_token={ACCESS_TOKEN}'
-    response = requests.get(hashtag_url)
-    hashtag_data = response.json()
-    
-    # 해시태그 ID 반환
-    return hashtag_data['data'][0]['id'] if 'data' in hashtag_data else None
 
 if __name__ == '__main__':
     app.run(debug=True)
