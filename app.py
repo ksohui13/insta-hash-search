@@ -9,19 +9,24 @@ ACCESS_TOKEN = config.ACCESS_TOKEN
 USER_ID = config.USER_ID
 
 # Instagram Graph API의 URL
-GRAPH_API_URL = 'https://graph.facebook.com/v12.0'
+GRAPH_API_URL = 'https://graph.facebook.com/v21.0'
 
 # 인기 게시물과 최신 게시물을 가져오는 함수
+# 게시글id, 설명, 미디어 타입, 미디어 url, 댓글 수,좋아요 수
 def get_instagram_posts(hashtag_id):
     # 인기 게시물 (top_media)
-    top_media_url = f'{GRAPH_API_URL}/{hashtag_id}/top_media?user_id={USER_ID}&fields=id,caption,media_type,media_url&access_token={ACCESS_TOKEN}'
+    top_media_url = f'{GRAPH_API_URL}/{hashtag_id}/top_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count&access_token={ACCESS_TOKEN}'
     top_media_response = requests.get(top_media_url)
     top_media_data = top_media_response.json().get('data', [])
 
-    # 최신 게시물 (recent_media)
-    recent_media_url = f'{GRAPH_API_URL}/{hashtag_id}/recent_media?user_id={USER_ID}&fields=id,caption,media_type,media_url&access_token={ACCESS_TOKEN}'
+    # 최근 게시물 (recent_media)
+    recent_media_url = f'{GRAPH_API_URL}/{hashtag_id}/recent_media?user_id={USER_ID}&fields=id,caption,media_type,media_url,comments_count,like_count&access_token={ACCESS_TOKEN}'
     recent_media_response = requests.get(recent_media_url)
     recent_media_data = recent_media_response.json().get('data', [])
+
+    # # 로그에 출력
+    # print("Top Media Data:", top_media_data)
+    # print("Recent Media Data:", recent_media_data)
 
     return top_media_data, recent_media_data
 
@@ -42,9 +47,8 @@ def index():
     
     return render_template('index.html')
 
-# 해시태그 이름을 ID로 변환하는 함수 (예시로 기능 구현)
+# 해시태그 검색
 def get_hashtag_id_from_name(hashtag):
-    # Instagram Graph API에서 해시태그 이름을 ID로 변환하는 API 호출 (예시)
     hashtag_url = f'https://graph.facebook.com/ig_hashtag_search?user_id={USER_ID}&q={hashtag}&access_token={ACCESS_TOKEN}'
     response = requests.get(hashtag_url)
     hashtag_data = response.json()
